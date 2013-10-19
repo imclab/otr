@@ -205,6 +205,7 @@
   //initialize the global variables
   for (bpe = 0; (1<<(bpe+1)) > (1<<bpe); bpe++);  // bpe = number of bits in the mantissa on this platform
   bpe>>=1;                   // bpe = number of bits in one element of the array representing the bigInt
+  bpe = 26;
   mask=(1<<bpe)-1;           //AND the mask with an integer to get its bpe least significant bits
   radix=mask+1;              //2^bpe.  a single 1 bit to the left of the first bit of mask
   var one=int2bigInt(1,1,1);     //constant used in powMod_()
@@ -940,11 +941,13 @@
       //    q[i-ky]--;    
       for (;;) {
         y2=(ky>1 ? y[ky-2] : 0)*q[i-ky];
-        c=y2>>bpe;
+        c=y2;
         y2=y2 & mask;
+        c = (c - y2) / radix;
         y1=c+q[i-ky]*y[ky-1];
-        c=y1>>bpe;
+        c=y1;
         y1=y1 & mask;
+        c = (c - y1) / radix;
 
         if (c==r[i] ? y1==r[i-1] ? y2>(i>1 ? r[i-2] : 0) : y1>r[i-1] : c>r[i]) 
           q[i-ky]--;
@@ -972,11 +975,12 @@
       c+=x[i];
       b=0;
       if (c<0) {
-        b=-(c>>bpe);
+        b = c & mask;
+        b = -((c - b) / radix);
         c+=b*radix;
       }
       x[i]=c & mask;
-      c=(c>>bpe)-b;
+      c = ((c - x[i]) / radix) - b;
     }
   }
 
@@ -1169,11 +1173,12 @@
       c+=x[i];
       b=0;
       if (c<0) {
-        b=-(c>>bpe);
+        b = c & mask;
+        b = -((c - b) / radix);
         c+=b*radix;
       }
       x[i]=c & mask;
-      c=(c>>bpe)-b;
+      c = ((c - x[i]) / radix) - b;
       if (!c) return; //stop carrying as soon as the carry is zero
     }
   }
@@ -1235,11 +1240,12 @@
       c+=x[i]*n;
       b=0;
       if (c<0) {
-        b=-(c>>bpe);
+        b = c & mask;
+        b = -((c - b) / radix);
         c+=b*radix;
       }
       x[i]=c & mask;
-      c=(c>>bpe)-b;
+      c = ((c - x[i]) / radix) - b;
     }
   }
 
@@ -1263,12 +1269,12 @@
     for (c=0,i=0;i<k;i++) {
       c+=a*x[i]+b*y[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
     for (i=k;i<kk;i++) {
       c+=a*x[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
   }
 
@@ -1281,12 +1287,12 @@
     for (c=0,i=ys;i<k;i++) {
       c+=x[i]+b*y[i-ys];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
     for (i=k;c && i<kk;i++) {
       c+=x[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
   }
 
@@ -1299,12 +1305,12 @@
     for (c=0,i=ys;i<k;i++) {
       c+=x[i]+y[i-ys];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
     for (i=k;c && i<kk;i++) {
       c+=x[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
   }
 
@@ -1317,12 +1323,12 @@
     for (c=0,i=ys;i<k;i++) {
       c+=x[i]-y[i-ys];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
     for (i=k;c && i<kk;i++) {
       c+=x[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
   }
 
@@ -1335,12 +1341,12 @@
     for (c=0,i=0;i<k;i++) {
       c+=x[i]-y[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
     for (i=k;c && i<x.length;i++) {
       c+=x[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
   }
 
@@ -1352,12 +1358,12 @@
     for (c=0,i=0;i<k;i++) {
       c+=x[i]+y[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
     for (i=k;c && i<x.length;i++) {
       c+=x[i];
       x[i]=c & mask;
-      c>>=bpe;
+      c = (c - x[i]) / radix;
     }
   }
 
@@ -1409,11 +1415,11 @@
     for (i=0;i<kx;i++) {
       c=s0[2*i]+x[i]*x[i];
       s0[2*i]=c & mask;
-      c>>=bpe;
+      c = (c - s0[2*i]) / radix;
       for (j=i+1;j<kx;j++) {
         c=s0[i+j]+2*x[i]*x[j]+c;
         s0[i+j]=(c & mask);
-        c>>=bpe;
+        c = (c - s0[i+j]) / radix;
       }
       s0[i+kx]=c;
     }
@@ -1514,24 +1520,35 @@
     for (i=0; i<kn; i++) {
       t=sa[0]+x[i]*y[0];
       ui=((t & mask) * np) & mask;  //the inner "& mask" was needed on Safari (but not MSIE) at one time
-      c=(t+ui*n[0]) >> bpe;
+      c=(t+ui*n[0]);
+      c = (c - (c & mask)) / radix;
       t=x[i];
       
       //do sa=(sa+x[i]*y+ui*n)/b   where b=2**bpe.  Loop is unrolled 5-fold for speed
       j=1;
-      for (;j<ky-4;) { c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask;   c>>=bpe;   j++; }    
-      for (;j<ky;)   { c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask;   c>>=bpe;   j++; }
-      for (;j<kn-4;) { c+=sa[j]+ui*n[j];          sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j];          sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j];          sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j];          sa[j-1]=c & mask;   c>>=bpe;   j++;
-                       c+=sa[j]+ui*n[j];          sa[j-1]=c & mask;   c>>=bpe;   j++; }  
-      for (;j<kn;)   { c+=sa[j]+ui*n[j];          sa[j-1]=c & mask;   c>>=bpe;   j++; }   
-      for (;j<ks;)   { c+=sa[j];                  sa[j-1]=c & mask;   c>>=bpe;   j++; }  
+      for (;j<ky-4;) {
+        c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+      }
+      for (;j<ky;)   {
+        c+=sa[j]+ui*n[j]+t*y[j];   sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+      }
+      for (;j<kn-4;) {
+        c+=sa[j]+ui*n[j];          sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j];          sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j];          sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j];          sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+        c+=sa[j]+ui*n[j];          sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+      }
+      for (;j<kn;)   {
+        c+=sa[j]+ui*n[j];          sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+      }
+      for (;j<ks;)   {
+        c+=sa[j];                  sa[j-1]=c & mask; c=(c-sa[j-1])/radix;   j++;
+      }
       sa[j-1]=c & mask;
     }
 
